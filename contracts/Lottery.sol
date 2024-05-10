@@ -1,7 +1,6 @@
 // SPDX-License-Identifier:MIT
 pragma solidity ^0.8.7;
 
-
 import {IVRFCoordinatorV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
@@ -10,7 +9,7 @@ error Lottery_Error_EntranceFee();
 
 error Lottery__TransferFailed();
 
-contract Lottery  is VRFConsumerBaseV2Plus {
+contract Lottery is VRFConsumerBaseV2Plus {
     /**Event */
     //抽奖人事件
     event lotteryEnter(address indexed player);
@@ -18,6 +17,8 @@ contract Lottery  is VRFConsumerBaseV2Plus {
     //VRF发送事件
     event RequestedLotteryWinner(uint256 indexed requestId);
 
+    //获得抽奖人事件
+    event WinnerPicked(address indexed winner);
 
     /**state Variables */
     //入场费
@@ -35,11 +36,11 @@ contract Lottery  is VRFConsumerBaseV2Plus {
 
     //keyHash
     bytes32 private immutable i_keyHash;
-    
+
     //COORDINATOR
     IVRFCoordinatorV2Plus private immutable i_coordinator; //0x9DdfaCa8183c41ad55329BdeeD9F6A8d53168B1B
 
-        // The default is 3, but you can set this higher.
+    // The default is 3, but you can set this higher.
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
 
     // For this example, retrieve 2 random values in one request.
@@ -49,11 +50,15 @@ contract Lottery  is VRFConsumerBaseV2Plus {
     //获取抽奖人
     address payable private recentWinner;
 
-    constructor(uint256 _entranceFee,uint256 _subscriptionId, address _coordinator,uint32 _callbackGasLimit, bytes32 _keyHash) VRFConsumerBaseV2Plus(_coordinator) {
+    constructor(
+        uint256 _entranceFee,
+        uint256 _subscriptionId,
+        address _coordinator,
+        uint32 _callbackGasLimit,
+        bytes32 _keyHash
+    ) VRFConsumerBaseV2Plus(_coordinator) {
         s_i_entranceFee = _entranceFee;
-        i_coordinator  = IVRFCoordinatorV2Plus(
-            _coordinator
-        );
+        i_coordinator = IVRFCoordinatorV2Plus(_coordinator);
         i_subscriptionId = _subscriptionId;
         i_callbackGasLimit = _callbackGasLimit;
         i_keyHash = _keyHash;
@@ -82,10 +87,7 @@ contract Lottery  is VRFConsumerBaseV2Plus {
     }
 
     //发送VRF
-    function requestRandomWords()
-        external
-        onlyOwner
-    {
+    function requestRandomWords() external onlyOwner {
         // Will revert if subscription is not set and funded.
         // To enable payment in native tokens, set nativePayment to true.
         uint256 requestId = i_coordinator.requestRandomWords(
@@ -103,9 +105,8 @@ contract Lottery  is VRFConsumerBaseV2Plus {
         emit RequestedLotteryWinner(requestId);
     }
 
-
     //通过VRF合约获取随机数
-     function fulfillRandomWords(
+    function fulfillRandomWords(
         uint256 /*_requestId*/,
         uint256[] memory _randomWords
     ) internal override {
@@ -116,10 +117,10 @@ contract Lottery  is VRFConsumerBaseV2Plus {
         if (!success) {
             revert Lottery__TransferFailed();
         }
-        
+        emit WinnerPicked(recentWinner);
     }
 
-    function getRecentWinner() public view returns(address payable){
+    function getRecentWinner() public view returns (address payable) {
         return recentWinner;
     }
 }
